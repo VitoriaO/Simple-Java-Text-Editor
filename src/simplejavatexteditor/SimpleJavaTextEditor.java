@@ -19,6 +19,7 @@
 package simplejavatexteditor;
 
 import javax.swing.JTextPane;
+import javax.swing.JTextArea;
 
 public class SimpleJavaTextEditor extends JTextPane {
 
@@ -27,11 +28,15 @@ public class SimpleJavaTextEditor extends JTextPane {
     public final static String NAME = "PHNotePad";
         public final static String EDITOR_EMAIL = "contact@achinthagunasekara.com";
     public final static double VERSION = 3.0;
-
+    
     /**
      * @param args
      */
     public static void main(String[] args) {
+    	CareTaker taker = new CareTaker();
+    	JTextArea text = new JTextArea();
+    	
+    	taker.add(new Originator(text));
         new UI().setVisible(true);
     }
 

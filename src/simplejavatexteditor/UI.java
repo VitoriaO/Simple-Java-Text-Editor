@@ -44,11 +44,11 @@ public class UI extends JFrame implements ActionListener {
     private final JComboBox fontSize, fontType;
     private final JMenu menuFile, menuEdit, menuFind, menuAbout;
     private final JMenuItem newFile, openFile, saveFile, close, cut, copy, paste, clearFile, selectAll, quickFind,
-            aboutMe, aboutSoftware, wordWrap;
+            aboutMe, aboutSoftware, wordWrap, undo;
     private final JToolBar mainToolbar;
-    JButton newButton, openButton, saveButton, clearButton, quickButton, aboutMeButton, aboutButton, closeButton;
+    JButton newButton, openButton, saveButton, clearButton, quickButton, aboutMeButton, aboutButton, closeButton, undoButton;
     private final Action selectAllAction;
-
+    private final CareTaker taker;
 
 
     // setup icons - File Menu
@@ -64,6 +64,7 @@ public class UI extends JFrame implements ActionListener {
     private final ImageIcon pasteIcon = new ImageIcon("icons/paste.png");
     private final ImageIcon selectAllIcon = new ImageIcon("icons/selectall.png");
     private final ImageIcon wordwrapIcon = new ImageIcon("icons/wordwrap.png");
+    private final ImageIcon undoIcon = new ImageIcon("icons/undo.png");
 
     // setup icons - Search Menu
     private final ImageIcon searchIcon = new ImageIcon("icons/search.png");
@@ -74,14 +75,16 @@ public class UI extends JFrame implements ActionListener {
 
     AutoComplete autocomplete;
     private boolean hasListener = false;
-
-
+    
+    
     public UI()
     {
+    	taker = new CareTaker();
+    	
         container = getContentPane();
 
         // Set the initial size of the window
-        setSize(700, 500);
+        setSize(800, 600);
 
         // Set the title of the window
         setTitle("Untitled | " + SimpleJavaTextEditor.NAME);
@@ -119,6 +122,7 @@ public class UI extends JFrame implements ActionListener {
         quickFind = new JMenuItem("Quick", searchIcon);
         aboutMe = new JMenuItem("About Me", aboutMeIcon);
         aboutSoftware = new JMenuItem("About Software", aboutIcon);
+        undo = new JMenuItem("Undo", undoIcon);
 
 
         menuBar = new JMenuBar();
@@ -178,6 +182,11 @@ public class UI extends JFrame implements ActionListener {
         clearFile.addActionListener(this);
         clearFile.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_K, InputEvent.CTRL_MASK));
         menuEdit.add(clearFile);
+        
+        //Undo
+        undo.addActionListener(this);
+        undo.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_MASK));
+        menuEdit.add(undo);
 
         // Cut Text
         cut = new JMenuItem(new DefaultEditorKit.CutAction());
@@ -281,6 +290,11 @@ public class UI extends JFrame implements ActionListener {
         mainToolbar.add(quickButton);
         mainToolbar.addSeparator();
 
+        undoButton = new JButton(undoIcon);
+        undoButton.setToolTipText("Undo");
+        undoButton.addActionListener(this);
+        mainToolbar.add(undoButton);
+        mainToolbar.addSeparator();
 
         aboutMeButton = new JButton(aboutMeIcon);
         aboutMeButton.setToolTipText("About Me");
@@ -313,7 +327,7 @@ public class UI extends JFrame implements ActionListener {
         for (int i = 0; i < fonts.length; i++)
         {
             //Adding font family names to font[] array
-             fontType.addItem ( fonts [i] );
+             fontType.addItem(fonts[i]);
         }
         //Setting maximize size of the fontType ComboBox
         fontType.setMaximumSize( new Dimension ( 170, 30 ));
@@ -363,8 +377,6 @@ public class UI extends JFrame implements ActionListener {
         });
         //FONT SIZE SETTINGS SECTION END
     }
-
-
 
     // Make the TextArea available to the autocomplete handler
     protected JTextArea getEditor() {
@@ -489,6 +501,11 @@ public class UI extends JFrame implements ActionListener {
         // About Software
         else if (e.getSource() == aboutSoftware || e.getSource() == aboutButton) {
             new About().software();
+        }
+        
+        else if(e.getSource() == undo || e.getSource() == undoButton){
+        	String text = taker.getLastState();
+        	textArea.setText(text);
         }
 
     }
