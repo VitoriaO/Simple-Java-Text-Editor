@@ -18,25 +18,23 @@
 
 package simplejavatexteditor;
 
+//import java.util.ArrayList;
+//import java.util.List;
 import javax.swing.JTextPane;
-import javax.swing.JTextArea;
+//import javax.swing.JTextArea;
 
 public class SimpleJavaTextEditor extends JTextPane {
 
     private static final long serialVersionUID = 1L;
     public final static String AUTHOR_EMAIL = "pierrehenrysoria@gmail.com";
     public final static String NAME = "PHNotePad";
-        public final static String EDITOR_EMAIL = "contact@achinthagunasekara.com";
+    public final static String EDITOR_EMAIL = "contact@achinthagunasekara.com";
     public final static double VERSION = 3.0;
     
     /**
      * @param args
      */
     public static void main(String[] args) {
-    	CareTaker taker = new CareTaker();
-    	JTextArea text = new JTextArea();
-    	
-    	taker.add(new Originator(text));
         new UI().setVisible(true);
     }
 

@@ -23,6 +23,9 @@ package simplejavatexteditor;
 
 import javax.swing.*;
 import javax.swing.border.Border;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -33,23 +36,26 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 import javax.swing.text.DefaultEditorKit;
+import javax.swing.text.Document;
+
+
 
 public class UI extends JFrame implements ActionListener {
     private static final long serialVersionUID = 1L;
     private final Container container;
-    private final JTextArea textArea;
+    private final JTextField textField;
+    private final JTextArea textArea, displayArea;
     private final JMenuBar menuBar;
     private final JComboBox fontSize, fontType;
     private final JMenu menuFile, menuEdit, menuFind, menuAbout;
     private final JMenuItem newFile, openFile, saveFile, close, cut, copy, paste, clearFile, selectAll, quickFind,
-            aboutMe, aboutSoftware, wordWrap, undo;
+    		aboutMe, aboutSoftware, wordWrap, undo;
     private final JToolBar mainToolbar;
     JButton newButton, openButton, saveButton, clearButton, quickButton, aboutMeButton, aboutButton, closeButton, undoButton;
     private final Action selectAllAction;
-    private final CareTaker taker;
-
 
     // setup icons - File Menu
     private final ImageIcon newIcon = new ImageIcon("icons/new.png");
@@ -65,7 +71,7 @@ public class UI extends JFrame implements ActionListener {
     private final ImageIcon selectAllIcon = new ImageIcon("icons/selectall.png");
     private final ImageIcon wordwrapIcon = new ImageIcon("icons/wordwrap.png");
     private final ImageIcon undoIcon = new ImageIcon("icons/undo.png");
-
+    
     // setup icons - Search Menu
     private final ImageIcon searchIcon = new ImageIcon("icons/search.png");
 
@@ -73,18 +79,20 @@ public class UI extends JFrame implements ActionListener {
     private final ImageIcon aboutMeIcon = new ImageIcon("icons/about_me.png");
     private final ImageIcon aboutIcon = new ImageIcon("icons/about.png");
 
+    ArrayList<Originator.Memento> savedStates;
+    Originator originator;
     AutoComplete autocomplete;
     private boolean hasListener = false;
-    
-    
+
+
     public UI()
     {
-    	taker = new CareTaker();
-    	
         container = getContentPane();
+        
+        savedStates = new ArrayList<Originator.Memento>();
 
         // Set the initial size of the window
-        setSize(800, 600);
+        setSize(700, 500);
 
         // Set the title of the window
         setTitle("Untitled | " + SimpleJavaTextEditor.NAME);
@@ -92,12 +100,32 @@ public class UI extends JFrame implements ActionListener {
         // Set the default close operation (exit when it gets closed)
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
+        textField = new JTextField(20);
+        textField.addActionListener(new MyTextActionListener());
+        textField.getDocument().addDocumentListener(new MyDocumentListener());
+        textField.getDocument().putProperty("name", "Text Field");
+        
         // Set a default font for the TextArea
         textArea = new JTextArea("", 0,0);
         textArea.setFont(new Font("Century Gothic", Font.BOLD, 12));
         textArea.setTabSize(2);
         textArea.setFont(new Font("Century Gothic", Font.BOLD, 12));
         textArea.setTabSize(2);
+        
+        originator = new Originator();
+    	originator.setState(textArea);
+    	savedStates.add(originator.saveToMemento());
+        
+        textArea.getDocument().addDocumentListener(new MyDocumentListener());
+        textArea.getDocument().putProperty("name", "Text Area");
+
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        scrollPane.setPreferredSize(new Dimension(200, 75));
+
+        displayArea = new JTextArea();
+        displayArea.setEditable(false);
+        JScrollPane displayScrollPane = new JScrollPane(displayArea);
+        displayScrollPane.setPreferredSize(new Dimension(200, 75));
 
         /* SETTING BY DEFAULT WORD WRAP ENABLED OR TRUE */
         textArea.setLineWrap(true);
@@ -124,14 +152,12 @@ public class UI extends JFrame implements ActionListener {
         aboutSoftware = new JMenuItem("About Software", aboutIcon);
         undo = new JMenuItem("Undo", undoIcon);
 
-
         menuBar = new JMenuBar();
         menuBar.add(menuFile);
         menuBar.add(menuEdit);
         menuBar.add(menuFind);
 
         menuBar.add(menuAbout);
-
 
 
         this.setJMenuBar(menuBar);
@@ -284,16 +310,16 @@ public class UI extends JFrame implements ActionListener {
         mainToolbar.add(clearButton);
         mainToolbar.addSeparator();
 
-        quickButton = new JButton(searchIcon);
-        quickButton.setToolTipText("Quick Search");
-        quickButton.addActionListener(this);
-        mainToolbar.add(quickButton);
-        mainToolbar.addSeparator();
-
         undoButton = new JButton(undoIcon);
         undoButton.setToolTipText("Undo");
         undoButton.addActionListener(this);
         mainToolbar.add(undoButton);
+        mainToolbar.addSeparator();
+        
+        quickButton = new JButton(searchIcon);
+        quickButton.setToolTipText("Quick Search");
+        quickButton.addActionListener(this);
+        mainToolbar.add(quickButton);
         mainToolbar.addSeparator();
 
         aboutMeButton = new JButton(aboutMeIcon);
@@ -307,7 +333,6 @@ public class UI extends JFrame implements ActionListener {
         aboutButton.addActionListener(this);
         mainToolbar.add(aboutButton);
         mainToolbar.addSeparator();
-
 
         closeButton = new JButton(closeIcon);
         closeButton.setToolTipText("Quit");
@@ -327,7 +352,7 @@ public class UI extends JFrame implements ActionListener {
         for (int i = 0; i < fonts.length; i++)
         {
             //Adding font family names to font[] array
-             fontType.addItem(fonts[i]);
+             fontType.addItem ( fonts [i] );
         }
         //Setting maximize size of the fontType ComboBox
         fontType.setMaximumSize( new Dimension ( 170, 30 ));
@@ -378,18 +403,27 @@ public class UI extends JFrame implements ActionListener {
         //FONT SIZE SETTINGS SECTION END
     }
 
+
+
     // Make the TextArea available to the autocomplete handler
     protected JTextArea getEditor() {
         return textArea;
     }
 
     public void actionPerformed (ActionEvent e) {
+    	displayArea.setText("");
+        textField.requestFocus();
+        
         // If the source of the event was our "close" option
         if (e.getSource() == close || e.getSource() == closeButton) {
             this.dispose(); // dispose all resources and close the application
         }
         // If the source was the "new" file option
         else if (e.getSource() == newFile || e.getSource() == newButton) {
+        	originator = new Originator();
+        	originator.setState(textArea);
+        	savedStates.add(originator.saveToMemento());
+        	
             FEdit.clear(textArea);
         }
 
@@ -404,6 +438,10 @@ public class UI extends JFrame implements ActionListener {
              * the file
              */
             if (option == JFileChooser.APPROVE_OPTION) {
+            	originator = new Originator();
+            	originator.setState(textArea);
+            	savedStates.add(originator.saveToMemento());
+            	
                 FEdit.clear(textArea); // clear the TextArea before applying the file contents
                 try {
                     // create a scanner to read the file (getSelectedFile().getPath() will get the path to the file)
@@ -416,6 +454,10 @@ public class UI extends JFrame implements ActionListener {
                     System.out.println(ex.getMessage());
                 }
             }
+            originator = new Originator();
+            originator.setState(textArea);
+        	savedStates.add(originator.saveToMemento());
+            
         }
         // If the source of the event was the "save" option
         else if (e.getSource() == saveFile || e.getSource() == saveButton) {
@@ -487,27 +529,102 @@ public class UI extends JFrame implements ActionListener {
 
         // Clear File (Code)
         if (e.getSource() == clearFile || e.getSource() == clearButton) {
+        	originator = new Originator();
+        	originator.setState(textArea);
+        	savedStates.add(originator.saveToMemento());
+        	
             FEdit.clear(textArea);
+            
+            originator = new Originator();
+            originator.setState(textArea);
+        	savedStates.add(originator.saveToMemento());
         }
         // Find
         if (e.getSource() == quickFind || e.getSource() == quickButton) {
+        	originator = new Originator();
+        	originator.setState(textArea);
+        	savedStates.add(originator.saveToMemento());
+        	
             new Find(textArea);
         }
 
         // About Me
         else if (e.getSource() == aboutMe || e.getSource() == aboutMeButton) {
+        	originator = new Originator();
+        	originator.setState(textArea);
+        	savedStates.add(originator.saveToMemento());
+        	
             new About().me();
         }
         // About Software
         else if (e.getSource() == aboutSoftware || e.getSource() == aboutButton) {
+        	originator = new Originator();
+        	originator.setState(textArea);
+        	savedStates.add(originator.saveToMemento());
+        	//System.out.println("ok" + savedStates.get(savedStates.size()-1).getSavedState().getText() + "\n" + savedStates.size());
             new About().software();
         }
         
+        //Undo
         else if(e.getSource() == undo || e.getSource() == undoButton){
-        	String text = taker.getLastState();
-        	textArea.setText(text);
+        	System.out.println("entrou no undo");
+        	if(savedStates.size() > 1){
+//        		for(int i = 0; i < (savedStates.size()-1); i++){
+//        			originator.restoreFromMemento(savedStates.get(i));
+//        			System.out.println(i + "\n" + originator.getState().getText());
+//        		}
+        		
+        		//System.out.println("entrou no if " + savedStates.size());
+            	originator.restoreFromMemento(savedStates.get(savedStates.size()-2));
+            	//System.out.println(savedStates.size());
+            	savedStates.remove(savedStates.size()-1);
+            	//System.out.println(savedStates.get(savedStates.size()-2).toString());
+            	//System.out.println(originator.getState().getText());
+            	textArea.setText(originator.getState().getText());
+        	}
+        	else{
+        		
+        	}
         }
 
+    }
+    
+    class MyDocumentListener implements DocumentListener {
+        final String newline = "\n";
+
+        public void insertUpdate(DocumentEvent e) {
+            updateLog(e, "inserted into");
+        }
+        public void removeUpdate(DocumentEvent e) {
+            updateLog(e, "removed from");
+        }
+        public void changedUpdate(DocumentEvent e) {
+            //Plain text components don't fire these events.
+        }
+
+        public void updateLog(DocumentEvent e, String action) {
+            Document doc = (Document)e.getDocument();
+            int changeLength = e.getLength();
+            displayArea.append(
+                changeLength + " character"
+              + ((changeLength == 1) ? " " : "s ")
+              + action + " " + doc.getProperty("name") + "."
+              + newline
+              + "  Text length = " + doc.getLength() + newline);
+            displayArea.setCaretPosition(displayArea.getDocument().getLength());
+        }
+    }
+    
+    class MyTextActionListener implements ActionListener {
+        /** Handle the text field Return. */
+        public void actionPerformed(ActionEvent e) {
+            int selStart = textArea.getSelectionStart();
+            int selEnd = textArea.getSelectionEnd();
+
+            textArea.replaceRange(textField.getText(),
+                                  selStart, selEnd);
+            textField.selectAll();
+        }
     }
 
     class SelectAllAction extends AbstractAction {
